@@ -148,10 +148,12 @@ class TagManager(models.Manager):
 
         return usage
 
-    def usage_for_queryset(self, queryset, counts=False, min_count=None):
+    def usage_for_queryset(self, queryset, counts=False, min_count=None, tag_queryset=None):
         """
         Obtain a list of tags associated with instances of a model
         contained in the given queryset.
+
+        The parameter tag_queryset allowes to filter the result tags list.
 
         If ``counts`` is True, a ``count`` attribute will be added to
         each tag, indicating how many times it has been used against
@@ -178,6 +180,25 @@ class TagManager(models.Manager):
             extra_criteria = 'AND %s' % where
         else:
             extra_criteria = ''
+
+        if tag_queryset and getattr(tag_queryset.query, 'get_compiler', None):
+            # Django 1.2+
+            compiler = tag_queryset.query.get_compiler(using='default')
+            extra_joins += ' ' + ' '.join(compiler.get_from_clause()[0][1:])
+            tag_where, tag_params = tag_queryset.query.where.as_sql(
+                compiler.quote_name_unless_alias, compiler.connection
+            )
+        else:
+            # Django pre-1.2
+            extra_joins += ' ' +  ' '.join(tag_queryset.query.get_from_clause()[0][1:])
+            tag_where, tag_params = tag_queryset.query.where.as_sql()
+
+        for p in tag_params:
+            params.append(p)
+
+        if tag_where:
+            extra_criteria += ' AND %s' % tag_where
+            
         return self._get_usage(queryset.model, counts, min_count, extra_joins, extra_criteria, params)
 
     def related_for_model(self, tags, model, counts=False, min_count=None):
