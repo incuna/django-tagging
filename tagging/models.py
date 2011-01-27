@@ -181,23 +181,24 @@ class TagManager(models.Manager):
         else:
             extra_criteria = ''
 
-        if tag_queryset and getattr(tag_queryset.query, 'get_compiler', None):
-            # Django 1.2+
-            compiler = tag_queryset.query.get_compiler(using='default')
-            extra_joins += ' ' + ' '.join(compiler.get_from_clause()[0][1:])
-            tag_where, tag_params = tag_queryset.query.where.as_sql(
-                compiler.quote_name_unless_alias, compiler.connection
-            )
-        else:
-            # Django pre-1.2
-            extra_joins += ' ' +  ' '.join(tag_queryset.query.get_from_clause()[0][1:])
-            tag_where, tag_params = tag_queryset.query.where.as_sql()
+        if tag_queryset is not None:
+            if getattr(tag_queryset.query, 'get_compiler', None):
+                # Django 1.2+
+                compiler = tag_queryset.query.get_compiler(using='default')
+                extra_joins += ' ' + ' '.join(compiler.get_from_clause()[0][1:])
+                tag_where, tag_params = tag_queryset.query.where.as_sql(
+                    compiler.quote_name_unless_alias, compiler.connection
+                )
+            else:
+                # Django pre-1.2
+                extra_joins += ' ' +  ' '.join(tag_queryset.query.get_from_clause()[0][1:])
+                tag_where, tag_params = tag_queryset.query.where.as_sql()
 
-        for p in tag_params:
-            params.append(p)
+            for p in tag_params:
+                params.append(p)
 
-        if tag_where:
-            extra_criteria += ' AND %s' % tag_where
+            if tag_where:
+                extra_criteria += ' AND %s' % tag_where
             
         return self._get_usage(queryset.model, counts, min_count, extra_joins, extra_criteria, params)
 
